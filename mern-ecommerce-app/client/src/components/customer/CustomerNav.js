@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import logo from '../../assesets/logo.png';
 
 const CustomerNav = () => {
     const { logout, impersonatingUser, exitImpersonation } = useAuth();
@@ -24,7 +25,7 @@ const CustomerNav = () => {
             {/* Logo and Website Name */}
             <div style={logoSectionStyle}>
                 <img
-                    src="https://placehold.co/60x60/3498db/FFFFFF/png?text=Y" // Placeholder logo, can be changed
+                    src={logo} // Placeholder logo, can be changed
                     alt="Yogi Tech Logo"
                     style={logoImageStyle}
                 />

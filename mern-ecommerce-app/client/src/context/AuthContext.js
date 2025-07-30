@@ -1,7 +1,8 @@
 // client/src/context/AuthContext.js
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 const AuthContext = createContext(null);
 
@@ -9,17 +10,23 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem('token') || null);
     const [loading, setLoading] = useState(true);
+    const [impersonatingUser, setImpersonatingUser] = useState(null);
+    const [originalAdminToken, setOriginalAdminToken] = useState(localStorage.getItem('originalAdminToken') || null);
 
     // Create a memoized axios instance that includes the token
     const authAxios = useMemo(() => {
         const instance = axios.create({
             baseURL: 'http://localhost:5000/api', // Your backend URL
+            headers: {
+                'Content-Type': 'application/json',
+            },
         });
 
         instance.interceptors.request.use(
             (config) => {
-                if (token) {
-                    config.headers.Authorization = `Bearer ${token}`;
+                const currentToken = localStorage.getItem('token');
+                if (currentToken) {
+                    config.headers.Authorization = `Bearer ${currentToken}`;
                 }
                 return config;
             },
@@ -30,87 +37,257 @@ export const AuthProvider = ({ children }) => {
             (response) => response,
             async (error) => {
                 const originalRequest = error.config;
-                // Example: If 401 and not already retrying, attempt token refresh
-                if (error.response.status === 401 && !originalRequest._retry) {
+                if (error.response?.status === 401 && !originalRequest._retry) {
                     originalRequest._retry = true;
                     console.error("AuthAxios Interceptor: Unauthorized request. Token might be invalid or missing.");
-                    // If the token is definitively bad, clear it and log out
-                    setToken(null);
                     localStorage.removeItem('token');
+                    localStorage.removeItem('impersonatingUser');
+                    localStorage.removeItem('originalAdminToken');
+                    setToken(null);
                     setUser(null);
-                    // Optionally, redirect to login page here
+                    setImpersonatingUser(null);
+                    setOriginalAdminToken(null);
+                    window.location.href = '/login';
                 }
                 return Promise.reject(error);
             }
         );
 
         return instance;
-    }, [token]);
+    }, []);
 
-    // This useEffect fetches the user data on initial mount
-    // and when the token changes (e.g., after login/logout)
     useEffect(() => {
-        const loadUser = async () => {
+        const loadUserFromToken = async () => {
             if (token) {
                 try {
-                    setLoading(true);
-                    const res = await authAxios.get('/auth/me');
-                    setUser(res.data);
+                    const decoded = jwtDecode(token);
+
+                    if (decoded.exp * 1000 < Date.now()) {
+                        console.log('Token expired. Logging out.');
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('impersonatingUser');
+                        localStorage.removeItem('originalAdminToken');
+                        setToken(null);
+                        setUser(null);
+                        setImpersonatingUser(null);
+                        setOriginalAdminToken(null);
+                    } else {
+                        setUser(decoded);
+                        try {
+                            const res = await authAxios.get('/auth/me');
+                            setUser(res.data);
+                            if (res.data.isImpersonating && localStorage.getItem('originalAdminToken')) {
+                                setImpersonatingUser(res.data);
+                            } else {
+                                setImpersonatingUser(null);
+                            }
+                        } catch (apiErr) {
+                            console.error('Failed to fetch user data from /auth/me:', apiErr);
+                            localStorage.removeItem('token');
+                            localStorage.removeItem('impersonatingUser');
+                            localStorage.removeItem('originalAdminToken');
+                            setToken(null);
+                            setUser(null);
+                            setImpersonatingUser(null);
+                            setOriginalAdminToken(null);
+                        }
+                    }
                 } catch (err) {
-                    console.error('Failed to load user from /auth/me:', err);
-                    // If 'me' fails, it means the token is bad, so clear it
-                    setToken(null);
+                    console.error('Failed to decode or validate token locally:', err);
                     localStorage.removeItem('token');
+                    localStorage.removeItem('impersonatingUser');
+                    localStorage.removeItem('originalAdminToken');
+                    setToken(null);
                     setUser(null);
-                } finally {
-                    setLoading(false);
+                    setImpersonatingUser(null);
+                    setOriginalAdminToken(null);
                 }
-            } else {
-                setUser(null);
-                setLoading(false);
             }
+            setLoading(false);
         };
 
-        loadUser();
-    }, [token, authAxios]); // Depend on token and authAxios
+        loadUserFromToken();
+    }, [token, authAxios]);
 
-    // Function to handle login
-    const login = async (email, password) => {
+    const login = useCallback(async (email, password) => {
+        setLoading(true);
         try {
             const res = await axios.post('http://localhost:5000/api/auth/login', { email, password });
             const newToken = res.data.token;
-            setToken(newToken);
             localStorage.setItem('token', newToken);
-            // The useEffect above will now trigger to load the user
-            return res.data;
-        } catch (err) {
-            console.error('Login failed:', err);
-            throw err;
-        }
-    };
+            setToken(newToken);
 
-    // Function to handle registration (New)
-    const register = async (userData) => {
+            const decodedUser = jwtDecode(newToken);
+            setUser(decodedUser);
+
+            setImpersonatingUser(null);
+            localStorage.removeItem('impersonatingUser');
+            setOriginalAdminToken(null);
+            localStorage.removeItem('originalAdminToken');
+
+            setLoading(false);
+            return decodedUser;
+        } catch (error) {
+            console.error('Login error:', error);
+            localStorage.removeItem('token');
+            localStorage.removeItem('impersonatingUser');
+            localStorage.removeItem('originalAdminToken');
+            setToken(null);
+            setUser(null);
+            setImpersonatingUser(null);
+            setOriginalAdminToken(null);
+            setLoading(false);
+            throw error;
+        }
+    }, []);
+
+    // MODIFIED: Register function now accepts a single userData object
+    const register = useCallback(async (userData) => {
+        setLoading(true);
         try {
-            const res = await axios.post('http://localhost:5000/api/auth/register', userData);
+            const res = await axios.post('http://localhost:5000/api/auth/register', userData); // Pass the object directly
             const newToken = res.data.token;
-            setToken(newToken);
             localStorage.setItem('token', newToken);
-            // The useEffect above will now trigger to load the user
-            return res.data;
-        } catch (err) {
-            console.error('Registration failed:', err);
-            throw err;
-        }
-    };
+            setToken(newToken);
 
-    // Function to handle logout
-    const logout = () => {
+            const decodedUser = jwtDecode(newToken);
+            setUser(decodedUser);
+
+            setImpersonatingUser(null);
+            localStorage.removeItem('impersonatingUser');
+            setOriginalAdminToken(null);
+            localStorage.removeItem('originalAdminToken');
+
+            setLoading(false);
+            return decodedUser;
+        } catch (error) {
+            console.error('Registration failed:', error.response?.data?.message || error.message);
+            localStorage.removeItem('token');
+            setToken(null);
+            setUser(null);
+            setImpersonatingUser(null);
+            setOriginalAdminToken(null);
+            setLoading(false);
+            throw error;
+        }
+    }, []);
+
+    const logout = useCallback(() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('impersonatingUser');
+        localStorage.removeItem('originalAdminToken');
         setToken(null);
         setUser(null);
-        localStorage.removeItem('token');
-        // Optionally redirect to login page
-    };
+        setImpersonatingUser(null);
+        setOriginalAdminToken(null);
+        setLoading(false);
+    }, []);
+
+    const impersonate = useCallback(async (customerId) => {
+        setLoading(true);
+        try {
+            localStorage.setItem('originalAdminToken', token);
+            setOriginalAdminToken(token);
+
+            const res = await authAxios.post(`/admin/impersonate/${customerId}`);
+            const customerToken = res.data.token;
+            localStorage.setItem('token', customerToken);
+            setToken(customerToken);
+
+            const decodedCustomer = jwtDecode(customerToken);
+            setUser(decodedCustomer);
+            setImpersonatingUser(decodedCustomer);
+
+            setLoading(false);
+            return true;
+        } catch (error) {
+            console.error('Impersonation failed:', error);
+            const storedOriginalToken = localStorage.getItem('originalAdminToken');
+            if (storedOriginalToken) {
+                localStorage.setItem('token', storedOriginalToken);
+                setToken(storedOriginalToken);
+                try {
+                    setUser(jwtDecode(storedOriginalToken));
+                } catch (decodeError) {
+                    console.error('Failed to decode original admin token on fallback:', decodeError);
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('impersonatingUser');
+                    localStorage.removeItem('originalAdminToken');
+                    setToken(null);
+                    setUser(null);
+                    setImpersonatingUser(null);
+                    setOriginalAdminToken(null);
+                }
+            } else {
+                localStorage.removeItem('token');
+                localStorage.removeItem('impersonatingUser');
+                localStorage.removeItem('originalAdminToken');
+                setToken(null);
+                setUser(null);
+                setImpersonatingUser(null);
+                setOriginalAdminToken(null);
+            }
+            setImpersonatingUser(null);
+            localStorage.removeItem('impersonatingUser');
+            setOriginalAdminToken(null);
+            localStorage.removeItem('originalAdminToken');
+            setLoading(false);
+            throw error;
+        }
+    }, [token, authAxios]);
+
+    const exitImpersonation = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await authAxios.post('/admin/exit-impersonation');
+            const newAdminToken = res.data.token;
+
+            localStorage.setItem('token', newAdminToken);
+            setToken(newAdminToken);
+
+            const decodedAdmin = jwtDecode(newAdminToken);
+            setUser(decodedAdmin);
+            setImpersonatingUser(null);
+            localStorage.removeItem('impersonatingUser');
+            setOriginalAdminToken(null);
+            localStorage.removeItem('originalAdminToken');
+
+            setLoading(false);
+            return true;
+        } catch (error) {
+            console.error('Failed to exit impersonation:', error);
+            if (originalAdminToken) {
+                localStorage.setItem('token', originalAdminToken);
+                setToken(originalAdminToken);
+                try {
+                    setUser(jwtDecode(originalAdminToken));
+                } catch (decodeError) {
+                    console.error('Failed to decode original admin token on fallback:', decodeError);
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('impersonatingUser');
+                    localStorage.removeItem('originalAdminToken');
+                    setToken(null);
+                    setUser(null);
+                    setImpersonatingUser(null);
+                    setOriginalAdminToken(null);
+                }
+            } else {
+                localStorage.removeItem('token');
+                localStorage.removeItem('impersonatingUser');
+                localStorage.removeItem('originalAdminToken');
+                setToken(null);
+                setUser(null);
+                setImpersonatingUser(null);
+                setOriginalAdminToken(null);
+            }
+            setImpersonatingUser(null);
+            localStorage.removeItem('impersonatingUser');
+            setOriginalAdminToken(null);
+            localStorage.removeItem('originalAdminToken');
+            setLoading(false);
+            throw error;
+        }
+    }, [originalAdminToken, authAxios]);
 
     const value = useMemo(() => ({
         user,
@@ -118,13 +295,19 @@ export const AuthProvider = ({ children }) => {
         loading,
         authAxios,
         login,
-        register, // Expose the new register function
+        register,
         logout,
-    }), [user, token, loading, authAxios, login, register, logout]); // Include register in dependencies
+        impersonate,
+        exitImpersonation,
+        impersonatingUser,
+    }), [user, token, loading, authAxios, login, register, logout, impersonate, exitImpersonation, impersonatingUser]);
 
-    // You might want to render children only when loading is false
     if (loading) {
-        return <div>Authenticating...</div>; // Or a spinner
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '1.5em', color: '#34495e' }}>
+                Authenticating...
+            </div>
+        );
     }
 
     return (

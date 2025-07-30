@@ -37,7 +37,7 @@ const registerUser = asyncHandler(async (req, res) => {
             lastName: user.lastName,
             email: user.email,
             role: user.role,
-            token: generateToken(user._id, user.role),
+            token: generateToken(user._id, user.role), // Generate token for the new user
         });
     } else {
         res.status(400);
@@ -62,6 +62,7 @@ const loginUser = asyncHandler(async (req, res) => {
             lastName: user.lastName,
             email: user.email,
             role: user.role,
+            isActive: user.isActive, // Include isActive status
             token: generateToken(user._id, user.role),
         });
     } else {
@@ -82,6 +83,8 @@ const getMe = asyncHandler(async (req, res) => {
             lastName: req.user.lastName,
             email: req.user.email,
             role: req.user.role,
+            isActive: req.user.isActive, // Include isActive status
+            // Potentially add isImpersonating flag if stored in token or user object
         });
     } else {
         res.status(404).json({ message: 'User data not found' });
@@ -93,28 +96,86 @@ const getMe = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/impersonate/:customerId
 // @access  Private/Admin
 const impersonateUser = asyncHandler(async (req, res) => {
-    // Placeholder for impersonation logic
-    // This would typically involve:
-    // 1. Verifying the admin's token (done by 'protect' and 'authorizeRoles').
-    // 2. Finding the customer by customerId.
-    // 3. Generating a new JWT token for the *customer's* _id and role.
-    // 4. Sending back this new token and the impersonated user's details.
-    // 5. You might also want to include the original admin's details (or a flag) in the response
-    //    so the frontend knows to display an "Exit Impersonation" button.
-    res.status(501).json({ message: 'Impersonation not yet implemented in backend.' });
+    // Ensure the requesting user is an admin
+    if (req.user.role !== 'admin') {
+        res.status(403);
+        throw new Error('Not authorized to impersonate users');
+    }
+
+    const customerId = req.params.customerId;
+    const customer = await User.findById(customerId);
+
+    if (!customer) {
+        res.status(404);
+        throw new Error('Customer not found');
+    }
+
+    if (customer.role !== 'customer') {
+        res.status(400);
+        throw new Error('Can only impersonate users with "customer" role.');
+    }
+
+    // Generate a new token for the customer, but include a flag
+    // and the original admin's ID/role in the payload for exit impersonation
+    const impersonationToken = generateToken(
+        customer._id,
+        customer.role,
+        {
+            isImpersonating: true,
+            originalAdminId: req.user._id,
+            originalAdminRole: req.user.role
+        }
+    );
+
+    res.json({
+        message: `Successfully impersonated ${customer.email}`,
+        token: impersonationToken,
+        user: { // Return the impersonated user's basic details
+            _id: customer._id,
+            firstName: customer.firstName,
+            lastName: customer.lastName,
+            email: customer.email,
+            role: customer.role,
+            isActive: customer.isActive,
+            isImpersonating: true // Flag for frontend
+        }
+    });
 });
 
 // @desc    Admin exits impersonation
 // @route   POST /api/auth/exit-impersonation
-// @access  Private/Admin
+// @access  Private/Admin (or authenticated user with impersonation token)
 const exitImpersonation = asyncHandler(async (req, res) => {
-    // Placeholder for exit impersonation logic
-    // This would typically involve:
-    // 1. Verifying the temporary (impersonation) token.
-    // 2. Retrieving the original admin's ID (which might be stored in the impersonation token's payload).
-    // 3. Generating a new token for the original admin.
-    // 4. Sending back this new token and the original admin's details.
-    res.status(501).json({ message: 'Exit impersonation not yet implemented in backend.' });
+    // The 'protect' middleware should have already verified the token
+    // and populated req.user with the impersonated user's details (which includes originalAdminId)
+    if (!req.user || !req.user.isImpersonating || !req.user.originalAdminId) {
+        res.status(400);
+        throw new Error('Not currently impersonating a user.');
+    }
+
+    const originalAdmin = await User.findById(req.user.originalAdminId);
+
+    if (!originalAdmin || originalAdmin.role !== req.user.originalAdminRole) {
+        res.status(404);
+        throw new Error('Original admin not found or role mismatch. Cannot exit impersonation.');
+    }
+
+    // Generate a new token for the original admin
+    const adminToken = generateToken(originalAdmin._id, originalAdmin.role);
+
+    res.json({
+        message: 'Exited impersonation successfully.',
+        token: adminToken,
+        user: { // Return the original admin's basic details
+            _id: originalAdmin._id,
+            firstName: originalAdmin.firstName,
+            lastName: originalAdmin.lastName,
+            email: originalAdmin.email,
+            role: originalAdmin.role,
+            isActive: originalAdmin.isActive,
+            isImpersonating: false // Flag for frontend
+        }
+    });
 });
 
 

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminNav from '../../components/admin/AdminNav';
 import { useAuth } from '../../context/AuthContext';
+import logo from '../../assesets/logo.png';
 
 const AdminSettingsPage = () => {
     const { authAxios } = useAuth();
@@ -124,7 +125,7 @@ const AdminSettingsPage = () => {
             <div style={contentAreaStyle}>
                 <div style={headerContainerStyle}>
                     <div style={brandContainerStyle}>
-                        <img src="https://placehold.co/50x50/3498db/FFFFFF/png?text=Y" alt="Yogi Tech Logo" style={brandLogoStyle} />
+                        <img src={logo} alt="Yogi Tech Logo" style={brandLogoStyle} />
                         <h1 style={brandNameStyle}>Yogi Tech Admin</h1>
                     </div>
                     <h2 style={pageTitleStyle}>Portal Settings</h2>

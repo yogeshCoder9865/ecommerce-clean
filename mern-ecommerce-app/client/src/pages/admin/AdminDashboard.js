@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AdminNav from '../../components/admin/AdminNav';
+import logo from '../../assesets/logo.png';
 
 const AdminDashboard = () => {
     const { user, logout, authAxios } = useAuth();
@@ -90,7 +91,7 @@ const AdminDashboard = () => {
             <div style={contentAreaStyle}>
                 <div style={headerContainerStyle}>
                     <div style={brandContainerStyle}>
-                        <img src="https://placehold.co/50x50/3498db/FFFFFF/png?text=Y" alt="Yogi Tech Logo" style={brandLogoStyle} />
+                        <img src={logo} alt="Yogi Tech Logo" style={brandLogoStyle} />
                         <h1 style={brandNameStyle}>Yogi Tech Admin</h1>
                     </div>
                     <h2 style={pageTitleStyle}>Dashboard Overview</h2>

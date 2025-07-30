@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import logo from '../../assesets/logo.png';
 
 const AdminNav = () => {
     const { logout, impersonatingUser, exitImpersonation } = useAuth();
@@ -22,7 +23,7 @@ const AdminNav = () => {
     return (
         <div style={navContainerStyle}>
             <div style={brandSectionStyle}>
-                <img src="https://placehold.co/50x50/3498db/FFFFFF/png?text=Y" alt="Yogi Tech Logo" style={brandLogoStyle} />
+                <img src={logo} alt="Yogi Tech Logo" style={brandLogoStyle} />
                 <h3 style={brandTitleStyle}>Yogi Tech Admin</h3>
             </div>
 
@@ -91,14 +92,14 @@ const navContainerStyle = {
 const brandSectionStyle = {
     display: 'flex',
     alignItems: 'center',
-    marginBottom: '40px',
+    marginBottom: '50px',
     paddingBottom: '20px',
     borderBottom: '1px solid rgba(255,255,255,0.1)', // Subtle separator
 };
 
 const brandLogoStyle = {
-    width: '45px',
-    height: '45px',
+    width: '50px',
+    height: '50px',
     borderRadius: '50%',
     marginRight: '15px',
     border: '2px solid #3498db', // Accent color border
