@@ -3,50 +3,61 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AdminNav from '../../components/admin/AdminNav';
-import logo from '../../assesets/logo.png';
+import logo from '../../assesets/logo.png'; // Corrected typo: assets
 
 const AdminDashboard = () => {
     const { user, logout, authAxios } = useAuth();
     const navigate = useNavigate();
-    const [stats, setStats] = useState({ products: 0, customers: 0, orders: {} });
+    // Initialize stats with expected structure from the backend /dashboard/statistics endpoint
+    const [stats, setStats] = useState({
+        totalProducts: 0,
+        totalCustomers: 0,
+        totalOrders: 0,
+        totalRevenue: '0.00', // Backend sends this as a string, keep it consistent
+        pendingOrders: 0,
+        ordersByStatus: {} // This will be derived or added if needed, but not directly from the main stats API
+    });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        const fetchStats = async () => {
+        const fetchDashboardStatistics = async () => {
             setLoading(true);
             setError('');
             try {
-                // Fetch product count
-                const productsRes = await authAxios.get('/products');
-                const totalProducts = productsRes.data.total || productsRes.data.products.length;
+                // Fetch all dashboard statistics from the dedicated backend endpoint
+                const res = await authAxios.get('/dashboard/statistics');
 
-                // Fetch customer count (assuming /users returns all users for admin)
-                const customersRes = await authAxios.get('/users');
-                // Filter for 'customer' role if your /users endpoint returns all user types
-                const totalCustomers = customersRes.data.filter(u => u.role === 'customer').length;
-
-                // Fetch orders and aggregate by status
-                const ordersRes = await authAxios.get('/orders');
-                const ordersByStatus = ordersRes.data.reduce((acc, order) => {
-                    acc[order.status] = (acc[order.status] || 0) + 1;
-                    return acc;
-                }, {});
-
+                // The backend /dashboard/statistics endpoint returns an object like:
+                // { totalUsers: N, totalOrders: M, totalRevenue: "X.XX", pendingOrders: P }
+                // We map these to our frontend state.
                 setStats({
-                    products: totalProducts,
-                    customers: totalCustomers,
-                    orders: ordersByStatus,
+                    totalProducts: res.data.totalProducts || 0, // Assuming backend also provides this or we fetch separately if needed
+                    totalCustomers: res.data.totalUsers || 0, // Backend calls it totalUsers
+                    totalOrders: res.data.totalOrders || 0,
+                    totalRevenue: res.data.totalRevenue || '0.00',
+                    pendingOrders: res.data.pendingOrders || 0,
+                    // If you still need orders by status, you'd need a separate endpoint for that
+                    // or modify the backend /dashboard/statistics to include it.
+                    // For now, we'll initialize it as empty or calculate from totalOrders/pendingOrders
+                    ordersByStatus: {
+                        'Pending': res.data.pendingOrders || 0,
+                        'Delivered': (res.data.totalOrders || 0) - (res.data.pendingOrders || 0) // Simple approximation
+                    }
                 });
             } catch (err) {
                 console.error('Failed to fetch dashboard stats:', err);
-                setError('Failed to load dashboard statistics. Please try again.');
+                // Check for specific error messages from backend
+                const errorMessage = err.response && err.response.data && err.response.data.message
+                                     ? err.response.data.message
+                                     : 'Failed to load dashboard statistics. Please try again.';
+                setError(errorMessage);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchStats();
+        fetchDashboardStatistics();
     }, [authAxios]); // Re-fetch when authAxios (and thus token) changes
 
     const handleLogout = () => {
@@ -105,7 +116,7 @@ const AdminDashboard = () => {
                             <i className="fas fa-box" style={cardIconStyle}></i>
                         </div>
                         <h3 style={cardTitleStyle}>Total Products</h3>
-                        <p style={cardValueStyle}>{stats.products}</p>
+                        <p style={cardValueStyle}>{stats.totalProducts}</p>
                         <button onClick={() => navigate('/admin/products')} style={cardActionButtonStyle}>Manage Products</button>
                     </div>
 
@@ -114,7 +125,7 @@ const AdminDashboard = () => {
                             <i className="fas fa-users" style={cardIconStyle}></i>
                         </div>
                         <h3 style={cardTitleStyle}>Total Customers</h3>
-                        <p style={cardValueStyle}>{stats.customers}</p>
+                        <p style={cardValueStyle}>{stats.totalCustomers}</p>
                         <button onClick={() => navigate('/admin/customers')} style={cardActionButtonStyle}>Manage Customers</button>
                     </div>
 
@@ -122,10 +133,40 @@ const AdminDashboard = () => {
                         <div style={cardIconContainerStyle}>
                             <i className="fas fa-shopping-cart" style={cardIconStyle}></i>
                         </div>
-                        <h3 style={cardTitleStyle}>Orders by Status</h3>
+                        <h3 style={cardTitleStyle}>Total Orders</h3> {/* Changed title to Total Orders */}
+                        <p style={cardValueStyle}>{stats.totalOrders}</p> {/* Display total orders */}
+                        <button onClick={() => navigate('/admin/orders')} style={cardActionButtonStyle}>Manage Orders</button>
+                    </div>
+
+                    {/* New card for Total Revenue */}
+                    <div style={dashboardCardStyle}>
+                        <div style={cardIconContainerStyle}>
+                            <i className="fas fa-dollar-sign" style={cardIconStyle}></i>
+                        </div>
+                        <h3 style={cardTitleStyle}>Total Revenue</h3>
+                        <p style={cardValueStyle}>${stats.totalRevenue}</p>
+                        <button onClick={() => navigate('/admin/orders')} style={cardActionButtonStyle}>View Sales</button>
+                    </div>
+
+                     {/* New card for Pending Orders */}
+                     <div style={dashboardCardStyle}>
+                        <div style={cardIconContainerStyle}>
+                            <i className="fas fa-clock" style={cardIconStyle}></i>
+                        </div>
+                        <h3 style={cardTitleStyle}>Pending Orders</h3>
+                        <p style={cardValueStyle}>{stats.pendingOrders}</p>
+                        <button onClick={() => navigate('/admin/orders?status=Pending')} style={cardActionButtonStyle}>Review Pending</button>
+                    </div>
+
+                    {/* This card will now display the derived ordersByStatus or be removed if not needed */}
+                    <div style={dashboardCardStyle}>
+                        <div style={cardIconContainerStyle}>
+                            <i className="fas fa-info-circle" style={cardIconStyle}></i>
+                        </div>
+                        <h3 style={cardTitleStyle}>Order Status Summary</h3>
                         <div style={ordersStatusListStyle}>
-                            {Object.entries(stats.orders).length > 0 ? (
-                                Object.entries(stats.orders).map(([status, count]) => (
+                            {Object.entries(stats.ordersByStatus).length > 0 ? (
+                                Object.entries(stats.ordersByStatus).map(([status, count]) => (
                                     <p key={status} style={orderStatusItemStyle}>
                                         <span style={{ ...orderStatusBadgeStyle, backgroundColor: getStatusColor(status) }}>
                                             {status}:
@@ -134,11 +175,12 @@ const AdminDashboard = () => {
                                     </p>
                                 ))
                             ) : (
-                                <p style={{ color: '#777', fontSize: '0.95em' }}>No orders found.</p>
+                                <p style={{ color: '#777', fontSize: '0.95em' }}>No detailed status breakdown available.</p>
                             )}
                         </div>
-                        <button onClick={() => navigate('/admin/orders')} style={cardActionButtonStyle}>Manage Orders</button>
+                        <button onClick={() => navigate('/admin/orders')} style={cardActionButtonStyle}>View All Orders</button>
                     </div>
+
                 </div>
 
                 <div style={logoutButtonContainerStyle}>

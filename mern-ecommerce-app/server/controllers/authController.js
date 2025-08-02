@@ -37,6 +37,7 @@ const registerUser = asyncHandler(async (req, res) => {
             lastName: user.lastName,
             email: user.email,
             role: user.role,
+            isActive: user.isActive, // Include isActive status
             token: generateToken(user._id, user.role), // Generate token for the new user
         });
     } else {
@@ -84,7 +85,9 @@ const getMe = asyncHandler(async (req, res) => {
             email: req.user.email,
             role: req.user.role,
             isActive: req.user.isActive, // Include isActive status
-            // Potentially add isImpersonating flag if stored in token or user object
+            // Conditionally include impersonation flags if they exist on req.user
+            ...(req.user.isImpersonating && { isImpersonating: req.user.isImpersonating }),
+            ...(req.user.originalAdminId && { originalAdminId: req.user.originalAdminId })
         });
     } else {
         res.status(404).json({ message: 'User data not found' });
@@ -115,16 +118,12 @@ const impersonateUser = asyncHandler(async (req, res) => {
         throw new Error('Can only impersonate users with "customer" role.');
     }
 
-    // Generate a new token for the customer, but include a flag
-    // and the original admin's ID/role in the payload for exit impersonation
+    // Generate a new token for the customer, including impersonation flags
     const impersonationToken = generateToken(
         customer._id,
         customer.role,
-        {
-            isImpersonating: true,
-            originalAdminId: req.user._id,
-            originalAdminRole: req.user.role
-        }
+        true, // isImpersonating = true
+        req.user._id // originalUserId (the admin's ID)
     );
 
     res.json({
@@ -155,12 +154,14 @@ const exitImpersonation = asyncHandler(async (req, res) => {
 
     const originalAdmin = await User.findById(req.user.originalAdminId);
 
-    if (!originalAdmin || originalAdmin.role !== req.user.originalAdminRole) {
+    // It's crucial to also check if the originalAdmin still has the 'admin' role
+    // to prevent a non-admin from gaining admin privileges by exiting impersonation.
+    if (!originalAdmin || originalAdmin.role !== 'admin') { // Changed from req.user.originalAdminRole as it might be undefined if not explicitly stored in token
         res.status(404);
         throw new Error('Original admin not found or role mismatch. Cannot exit impersonation.');
     }
 
-    // Generate a new token for the original admin
+    // Generate a new token for the original admin (without impersonation flags)
     const adminToken = generateToken(originalAdmin._id, originalAdmin.role);
 
     res.json({

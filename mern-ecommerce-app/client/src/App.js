@@ -1,11 +1,11 @@
 // client/src/App.js
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext'; // We'll create this
+import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/common/LoginPage';
 import RegisterPage from './pages/customer/RegisterPage';
 import CustomerDashboard from './pages/customer/CustomerDashboard';
-import ProductBrowsePage from './pages/customer/ProductBrowsePage';
+import ProductBrowsePage from './pages/customer/ProductBrowsePage'; // This will now handle details too
 import CartPage from './pages/customer/CartPage';
 import CheckoutPage from './pages/customer/CheckoutPage';
 import CustomerOrdersPage from './pages/customer/CustomerOrdersPage';
@@ -16,6 +16,7 @@ import AdminProductManagement from './pages/admin/AdminProductManagement';
 import AdminCustomerManagement from './pages/admin/AdminCustomerManagement';
 import AdminOrderManagement from './pages/admin/AdminOrderManagement';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage';
+import OrderDetailPage from './pages/customer/OrderDetailPage';
 
 // PrivateRoute component to protect routes
 const PrivateRoute = ({ children, roles }) => {
@@ -38,10 +39,19 @@ const App = () => {
 
                     {/* Customer Portal Routes */}
                     <Route path="/" element={<PrivateRoute roles={['customer']}> <CustomerDashboard /> </PrivateRoute>} />
-                    <Route path="/products" element={<PrivateRoute roles={['customer']}> <ProductBrowsePage /> </PrivateRoute>} />
+                    {/* MODIFIED ROUTE: Allows /products or /products/:id */}
+                    <Route path="/products/:id?" element={<PrivateRoute roles={['customer']}> <ProductBrowsePage /> </PrivateRoute>} />
                     <Route path="/cart" element={<PrivateRoute roles={['customer']}> <CartPage /> </PrivateRoute>} />
                     <Route path="/checkout" element={<PrivateRoute roles={['customer']}> <CheckoutPage /> </PrivateRoute>} />
                     <Route path="/my-orders" element={<PrivateRoute roles={['customer']}> <CustomerOrdersPage /> </PrivateRoute>} />
+                    <Route
+                        path="/my-orders/:orderId"
+                        element={
+                            <PrivateRoute roles={['customer']}>
+                            <OrderDetailPage />
+                            </PrivateRoute>
+                        }
+                        />
                     <Route path="/profile" element={<PrivateRoute roles={['customer']}> <CustomerProfilePage /> </PrivateRoute>} />
 
                     {/* Admin Portal Routes */}

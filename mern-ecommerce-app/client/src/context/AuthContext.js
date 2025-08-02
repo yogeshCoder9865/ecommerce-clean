@@ -189,7 +189,8 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem('originalAdminToken', token);
             setOriginalAdminToken(token);
 
-            const res = await authAxios.post(`/admin/impersonate/${customerId}`);
+            // FIX IS HERE: Changed from `/admin/impersonate` to `/auth/impersonate`
+            const res = await authAxios.post(`/auth/impersonate/${customerId}`);
             const customerToken = res.data.token;
             localStorage.setItem('token', customerToken);
             setToken(customerToken);
@@ -239,7 +240,8 @@ export const AuthProvider = ({ children }) => {
     const exitImpersonation = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await authAxios.post('/admin/exit-impersonation');
+            // FIX IS HERE: Changed from `/admin/exit-impersonation` to `/auth/exit-impersonation`
+            const res = await authAxios.post('/auth/exit-impersonation');
             const newAdminToken = res.data.token;
 
             localStorage.setItem('token', newAdminToken);

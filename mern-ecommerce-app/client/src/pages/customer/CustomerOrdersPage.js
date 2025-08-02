@@ -42,6 +42,26 @@ const CustomerOrdersPage = () => {
         setSelectedOrder(null);
     };
 
+    const handleCancelOrder = async () => {
+    if (!selectedOrder) return;
+
+    try {
+        const res = await authAxios.put(`/orders/${selectedOrder._id}/status`, {
+            status: 'Cancelled'
+        });
+
+        const updatedOrder = res.data;
+        // Update order in list
+        const updatedOrders = orders.map(order =>
+            order._id === updatedOrder._id ? updatedOrder : order
+        );
+        setOrders(updatedOrders);
+        setSelectedOrder(updatedOrder); // Update modal view too
+    } catch (err) {
+        console.error('Failed to cancel order:', err);
+        alert('Failed to cancel the order. Please try again.');
+    }
+};
     // Helper for Status Colors (re-used from CustomerDashboard)
     const getStatusColor = (status) => {
         switch (status) {
@@ -129,10 +149,18 @@ const CustomerOrdersPage = () => {
                             <h4 style={modalSectionHeaderStyle}>Products:</h4>
                             <div style={modalProductsListStyle}>
                                 {selectedOrder.products.map(item => (
-                                    <div key={item.product._id} style={modalProductItemStyle}>
-                                        <img src={item.product.imageUrl || 'https://placehold.co/50x50/eeeeee/333333?text=Prod'} alt={item.product.name} style={modalProductImageStyle} />
-                                        <span style={modalProductNameStyle}>{item.product.name} x {item.quantity}</span>
-                                        <span style={modalProductPriceStyle}>${item.priceAtOrder.toFixed(2)}</span>
+                                    <div key={item.product ? item.product._id : item._id} style={modalProductItemStyle}> {/* Fallback key */}
+                                        <img
+                                            src={item.product ? item.product.imageUrl : 'https://placehold.co/50x50/eeeeee/333333?text=Prod'}
+                                            alt={item.product ? item.product.name : 'Product Image'}
+                                            style={modalProductImageStyle}
+                                        />
+                                        <span style={modalProductNameStyle}>
+                                            {item.product ? item.product.name : 'Unknown Product'} x {item.quantity}
+                                        </span>
+                                        <span style={modalProductPriceStyle}>
+                                            ${(item.priceAtOrder || item.product?.price || 0).toFixed(2)} {/* Fallback for price */}
+                                        </span>
                                     </div>
                                 ))}
                             </div>
@@ -147,7 +175,21 @@ const CustomerOrdersPage = () => {
                             </div>
 
                             <div style={modalFooterStyle}>
+                              {(selectedOrder.status === 'Pending' || selectedOrder.status === 'Processing') && (
+                                    <button
+                                        onClick={handleCancelOrder}
+                                        style={{
+                                            ...closeModalButtonStyle,
+                                            backgroundColor: '#dc3545',
+                                            marginRight: '10px'
+                                        }}
+                                    >
+                                        Cancel Order
+                                    </button>
+                                )}
+
                                 <button onClick={closeOrderDetails} style={closeModalButtonStyle}>Close</button>
+
                             </div>
                         </div>
                     </div>

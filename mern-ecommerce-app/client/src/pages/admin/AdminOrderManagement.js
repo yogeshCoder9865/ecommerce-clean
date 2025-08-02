@@ -153,7 +153,7 @@ const AdminOrderManagement = () => {
         };
     };
 
-    // --- Fetch Orders (wrapped in useCallback) ---
+    // --- Fetch Orders (wrapped in useCallback for memoization) ---
     const fetchOrders = useCallback(async () => {
         setLoading(true);
         setError('');
@@ -170,7 +170,7 @@ const AdminOrderManagement = () => {
             }
 
             const res = await authAxios.get('/orders', { params });
-            setOrders(res.data.orders || res.data);
+            setOrders(res.data.orders || res.data); // Ensure it handles both array and object with 'orders' key
             setTotalPages(res.data.pages || 1);
         } catch (err) {
             console.error('Failed to fetch orders:', err);
@@ -178,7 +178,7 @@ const AdminOrderManagement = () => {
         } finally {
             setLoading(false);
         }
-    }, [authAxios, currentPage, filterStatus, searchCustomerEmail]); // Dependencies for useCallback
+    }, [authAxios, currentPage, filterStatus, searchCustomerEmail, itemsPerPage]); // Added itemsPerPage to dependencies
 
     // --- Effect to call fetchOrders on component mount and dependency changes ---
     useEffect(() => {
@@ -189,12 +189,12 @@ const AdminOrderManagement = () => {
 
     const handleFilterStatusChange = (e) => {
         setFilterStatus(e.target.value);
-        setCurrentPage(1);
+        setCurrentPage(1); // Reset to first page on filter change
     };
 
     const handleSearchCustomerChange = (e) => {
         setSearchCustomerEmail(e.target.value);
-        setCurrentPage(1);
+        setCurrentPage(1); // Reset to first page on search change
     };
 
     const handlePageChange = (page) => {
@@ -214,6 +214,7 @@ const AdminOrderManagement = () => {
                 setError('');
                 setSuccessMessage('');
                 const res = await authAxios.put(`/orders/${orderId}/status`, { status: newStatus });
+                // Update the specific order in the state to reflect the change immediately
                 setOrders(prev => prev.map(order => order._id === res.data._id ? res.data : order));
                 showMessageBox('Order status updated successfully!', 'success');
             } catch (err) {
@@ -229,6 +230,7 @@ const AdminOrderManagement = () => {
                 setError('');
                 setSuccessMessage('');
                 await authAxios.delete(`/orders/${orderId}`);
+                // Filter out the deleted order from the state
                 setOrders(prev => prev.filter(order => order._id !== orderId));
                 showMessageBox('Order deleted successfully!', 'success');
             } catch (err) {
@@ -313,7 +315,8 @@ const AdminOrderManagement = () => {
                                 </thead>
                                 <tbody>
                                     {orders.map((order, index) => (
-                                        <tr key={order._id} style={{ ...tableRowStyle, animationDelay: `${index * 0.05}s` }}>
+                                        // Apply a subtle animation delay to each row
+                                        <tr key={order._id} style={{ ...tableRowStyle, animation: `fadeInUp 0.5s ease-out ${index * 0.05}s forwards`, opacity: 0 }}>
                                             <td style={tableCellStyle}>{order._id.substring(0, 8)}...</td>
                                             <td style={tableCellStyle}>{order.user ? `${order.user.firstName} ${order.user.lastName} (${order.user.email})` : 'N/A'}</td>
                                             <td style={tableCellStyle}>{new Date(order.createdAt).toLocaleDateString()}</td>
@@ -388,10 +391,19 @@ const AdminOrderManagement = () => {
                             <h4 style={modalSectionHeaderStyle}>Products:</h4>
                             <div style={modalProductsListStyle}>
                                 {selectedOrder.products.map(item => (
-                                    <div key={item.product._id} style={modalProductItemStyle}>
-                                        <img src={item.product.imageUrl || 'https://placehold.co/60x60/e0f2f7/3498db?text=Prod'} alt={item.product.name} style={modalProductImageStyle} />
-                                        <span style={modalProductNameStyle}>{item.product.name} x {item.quantity}</span>
-                                        <span style={modalProductPriceStyle}>${item.priceAtOrder.toFixed(2)}</span>
+                                    <div key={item.product?._id || Math.random()} style={modalProductItemStyle}> {/* Fallback key */}
+                                        <img
+                                            src={item.product?.imageUrl || 'https://placehold.co/60x60/e0f2f7/3498db?text=No+Image'}
+                                            alt={item.product?.name || 'Unknown Product'}
+                                            style={modalProductImageStyle}
+                                            onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/60x60/e0f2f7/3498db?text=Error'; }} // Handle broken image links
+                                        />
+                                        <span style={modalProductNameStyle}>
+                                            {item.product?.name || 'Unknown Product'} x {item.quantity}
+                                        </span>
+                                        <span style={modalProductPriceStyle}>
+                                            ${(item.priceAtOrder || 0).toFixed(2)}
+                                        </span>
                                     </div>
                                 ))}
                             </div>
@@ -829,43 +841,5 @@ const closeModalButtonStyle = {
         transform: 'translateY(-2px)',
     },
 };
-
-// Keyframes for animations (ensure these are in your client/src/index.css or a global stylesheet)
-/*
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-    20%, 40%, 60%, 80% { transform: translateX(5px); }
-}
-
-@keyframes bounceIn {
-    0% { transform: scale(0.3); opacity: 0; }
-    50% { transform: scale(1.1); opacity: 1; }
-    70% { transform: scale(0.9); }
-    100% { transform: scale(1); }
-}
-
-@keyframes zoomIn {
-    from { opacity: 0; transform: scale(0.8); }
-    to { opacity: 1; transform: scale(1); }
-}
-*/
-
-
 
 export default AdminOrderManagement;

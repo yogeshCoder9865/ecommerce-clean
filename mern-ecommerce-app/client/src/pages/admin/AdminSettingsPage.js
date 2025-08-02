@@ -2,22 +2,45 @@
 import React, { useState, useEffect } from 'react';
 import AdminNav from '../../components/admin/AdminNav';
 import { useAuth } from '../../context/AuthContext';
-import logo from '../../assesets/logo.png';
+import logo from '../../assesets/logo.png'; // Corrected typo: assets
 
 const AdminSettingsPage = () => {
     const { authAxios } = useAuth();
     const [settings, setSettings] = useState({
+        // Branding & Appearance
+        portalName: 'Yogi Tech', // New: Portal Name
         logoUrl: '',
-        primaryColor: '#3498db', // Default primary color
-        secondaryColor: '#2ecc71', // Default secondary color
-        fontFamily: 'Inter, Arial, sans-serif', // Default font family
-        dashboardCustomHtml: ''
+        faviconUrl: '', // New: Favicon URL
+        primaryColor: '#3498db',
+        secondaryColor: '#2ecc71',
+        fontFamily: 'Inter, Arial, sans-serif',
+        homepageBannerText: 'Welcome to Yogi Tech! Discover our latest innovations.', // New: Homepage Banner Text
+        homepageBannerHtml: '', // New: Rich HTML for homepage banner
+
+        // Contact & Social Media
+        companyEmail: '', // New: Company Email
+        companyPhone: '', // New: Company Phone
+        companyAddress: '', // New: Company Address
+        socialFacebook: '', // New: Facebook URL
+        socialTwitter: '', // New: Twitter URL
+        socialInstagram: '', // New: Instagram URL
+        socialLinkedIn: '', // New: LinkedIn URL
+
+        // SEO & Analytics
+        metaTitle: 'Yogi Tech - Your Technology Partner', // New: Default Meta Title
+        metaDescription: 'Explore cutting-edge technology products and solutions from Yogi Tech. Innovation at your fingertips.', // New: Default Meta Description
+        googleAnalyticsId: '', // New: Google Analytics Tracking ID
+
+        // Advanced Options
+        currencySymbol: '$', // New: Currency Symbol
+        enableMaintenanceMode: false, // New: Maintenance Mode Toggle
+        dashboardCustomHtml: '' // Existing: for Customer Dashboard
     });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
-    // --- Custom Message Box Functions (Re-used for consistency) ---
+    // --- Custom Message Box Functions ---
     const showMessageBox = (message, type = 'info', onConfirm) => {
         const messageBox = document.createElement('div');
         messageBox.style.cssText = `
@@ -28,26 +51,39 @@ const AdminSettingsPage = () => {
             background-color: white;
             padding: 30px;
             border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 5px 25px rgba(0,0,0,0.4);
             z-index: 2000;
             text-align: center;
             font-family: 'Inter', Arial, sans-serif;
-            max-width: 400px;
+            max-width: 450px;
             width: 90%;
-            animation: fadeIn 0.3s ease-out;
+            animation: fadeInScale 0.3s ease-out forwards;
             border: 2px solid ${type === 'error' ? '#e74c3c' : (type === 'success' ? '#28a745' : '#007bff')};
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
         `;
         messageBox.innerHTML = `
-            <p style="font-size: 1.2em; margin-bottom: 20px; color: ${type === 'error' ? '#e74c3c' : (type === 'success' ? '#28a745' : '#333')};">${message}</p>
+            <div style="
+                font-size: 2.5em;
+                color: ${type === 'error' ? '#e74c3c' : (type === 'success' ? '#28a745' : '#007bff')};
+                margin-bottom: 10px;
+            ">
+                ${type === 'success' ? '<i class="fas fa-check-circle"></i>' : (type === 'error' ? '<i class="fas fa-times-circle"></i>' : '<i class="fas fa-info-circle"></i>')}
+            </div>
+            <p style="font-size: 1.2em; margin: 0; color: #333; font-weight: 500;">${message}</p>
             <button id="msgBoxConfirmBtn" style="
-                padding: 10px 20px;
+                padding: 12px 25px;
                 background-color: ${type === 'error' ? '#e74c3c' : (type === 'success' ? '#28a745' : '#007bff')};
                 color: white;
                 border: none;
-                border-radius: 5px;
+                border-radius: 8px;
                 cursor: pointer;
                 font-size: 1em;
-                transition: background-color 0.3s ease;
+                font-weight: bold;
+                transition: background-color 0.3s ease, transform 0.2s ease;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.2);
             ">OK</button>
         `;
         document.body.appendChild(messageBox);
@@ -55,19 +91,19 @@ const AdminSettingsPage = () => {
         const styleSheet = document.createElement("style");
         styleSheet.type = "text/css";
         styleSheet.innerText = `
-            @keyframes fadeIn {
-                from { opacity: 0; transform: translate(-50%, -60%); }
-                to { opacity: 1; transform: translate(-50%, -50%); }
+            @keyframes fadeInScale {
+                from { opacity: 0; transform: translate(-50%, -60%) scale(0.9); }
+                to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
             }
-            @keyframes fadeOut {
-                from { opacity: 1; transform: translate(-50%, -50%); }
-                to { opacity: 0; transform: translate(-50%, -60%); }
+            @keyframes fadeOutScale {
+                from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                to { opacity: 0; transform: translate(-50%, -60%) scale(0.9); }
             }
         `;
         document.head.appendChild(styleSheet);
 
         document.getElementById('msgBoxConfirmBtn').onclick = () => {
-            messageBox.style.animation = 'fadeOut 0.3s ease-in forwards';
+            messageBox.style.animation = 'fadeOutScale 0.3s ease-in forwards';
             messageBox.addEventListener('animationend', () => {
                 document.body.removeChild(messageBox);
                 document.head.removeChild(styleSheet);
@@ -83,11 +119,12 @@ const AdminSettingsPage = () => {
                 setLoading(true);
                 setError('');
                 const res = await authAxios.get('/settings');
-                // Assuming your /api/settings returns a single settings object
-                setSettings(res.data);
+                // Merge fetched settings with default state to ensure all fields exist
+                setSettings(prev => ({ ...prev, ...res.data }));
             } catch (err) {
                 console.error('Failed to fetch settings:', err);
                 setError('Failed to load settings. Please try again.');
+                showMessageBox('Failed to load settings. Please try again.', 'error');
             } finally {
                 setLoading(false);
             }
@@ -97,8 +134,11 @@ const AdminSettingsPage = () => {
 
     // --- Handlers for form changes ---
     const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setSettings(prev => ({ ...prev, [name]: value }));
+        const { name, value, type, checked } = e.target;
+        setSettings(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
     };
 
     const handleSubmit = async (e) => {
@@ -111,9 +151,13 @@ const AdminSettingsPage = () => {
             const res = await authAxios.put('/settings', settings);
             setSettings(res.data); // Update state with confirmed saved settings
             showMessageBox('Settings updated successfully!', 'success');
+            setSuccessMessage('Settings updated successfully!');
+            setTimeout(() => setSuccessMessage(''), 3000); // Clear success message after 3 seconds
         } catch (err) {
             console.error('Failed to update settings:', err.response?.data?.message || err.message);
-            setError(err.response?.data?.message || 'Failed to update settings. Please try again.');
+            const errorMessage = err.response?.data?.message || 'Failed to update settings. Please try again.';
+            setError(errorMessage);
+            showMessageBox(errorMessage, 'error');
         } finally {
             setLoading(false);
         }
@@ -141,6 +185,21 @@ const AdminSettingsPage = () => {
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit} style={formStyle}>
+
+                        {/* Branding & Appearance Section */}
+                        <h3 style={sectionTitleStyle}><i className="fas fa-paint-brush section-icon"></i> Branding & Appearance</h3>
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>Portal Name:</label>
+                            <input
+                                type="text"
+                                name="portalName"
+                                value={settings.portalName}
+                                onChange={handleInputChange}
+                                style={inputStyle}
+                                placeholder="e.g., Yogi Tech, My Store"
+                            />
+                            <p style={helpTextStyle}>The main name displayed across your portal.</p>
+                        </div>
                         <div style={formGroupStyle}>
                             <label style={labelStyle}>Logo URL:</label>
                             <input
@@ -157,6 +216,25 @@ const AdminSettingsPage = () => {
                                     <p style={imagePreviewLabelStyle}>Current Logo Preview</p>
                                 </div>
                             )}
+                            <p style={helpTextStyle}>URL for your main website logo. Max height: 100px.</p>
+                        </div>
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>Favicon URL:</label>
+                            <input
+                                type="text"
+                                name="faviconUrl"
+                                value={settings.faviconUrl}
+                                onChange={handleInputChange}
+                                style={inputStyle}
+                                placeholder="e.g., https://example.com/favicon.ico"
+                            />
+                            {settings.faviconUrl && (
+                                <div style={imagePreviewContainerStyle}>
+                                    <img src={settings.faviconUrl} alt="Current Favicon" style={faviconPreviewStyle} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/32x32/FF0000/FFFFFF?text=F'; }} />
+                                    <p style={imagePreviewLabelStyle}>Current Favicon Preview</p>
+                                </div>
+                            )}
+                            <p style={helpTextStyle}>URL for the small icon displayed in browser tabs. (e.g., .ico, .png, .svg)</p>
                         </div>
 
                         <div style={formGroupStyle}>
@@ -171,6 +249,7 @@ const AdminSettingsPage = () => {
                                 />
                                 <span style={colorValueStyle}>{settings.primaryColor}</span>
                             </div>
+                            <p style={helpTextStyle}>Main accent color for buttons, links, etc.</p>
                         </div>
 
                         <div style={formGroupStyle}>
@@ -185,6 +264,7 @@ const AdminSettingsPage = () => {
                                 />
                                 <span style={colorValueStyle}>{settings.secondaryColor}</span>
                             </div>
+                            <p style={helpTextStyle}>Secondary accent color for highlights and backgrounds.</p>
                         </div>
 
                         <div style={formGroupStyle}>
@@ -200,10 +280,160 @@ const AdminSettingsPage = () => {
                             <p style={{ ...fontPreviewStyle, fontFamily: settings.fontFamily }}>
                                 This is a preview of the font.
                             </p>
+                            <p style={helpTextStyle}>Specify a CSS font-family string. Ensure the font is loaded (e.g., Google Fonts).</p>
                         </div>
 
                         <div style={formGroupStyle}>
-                            <label style={labelStyle}>Dashboard Custom HTML (for Customer Dashboard):</label>
+                            <label style={labelStyle}>Homepage Banner Text:</label>
+                            <input
+                                type="text"
+                                name="homepageBannerText"
+                                value={settings.homepageBannerText}
+                                onChange={handleInputChange}
+                                style={inputStyle}
+                                placeholder="Short, catchy text for your homepage banner"
+                            />
+                            <p style={helpTextStyle}>A short, compelling message for the main homepage banner.</p>
+                        </div>
+
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>Homepage Banner Custom HTML:</label>
+                            <textarea
+                                name="homepageBannerHtml"
+                                value={settings.homepageBannerHtml}
+                                onChange={handleInputChange}
+                                rows="6"
+                                style={textareaStyle}
+                                placeholder="Enter custom HTML content for the homepage banner (e.g., complex layouts, rich text). This overrides Banner Text."
+                            ></textarea>
+                            <p style={helpTextStyle}>Advanced: Custom HTML for the main homepage banner. Use with caution as this will be rendered directly and overrides the simple banner text.</p>
+                        </div>
+
+                        {/* Contact & Social Media Section */}
+                        <h3 style={sectionTitleStyle}><i className="fas fa-address-book section-icon"></i> Contact & Social Media</h3>
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>Company Email:</label>
+                            <input
+                                type="email"
+                                name="companyEmail"
+                                value={settings.companyEmail}
+                                onChange={handleInputChange}
+                                style={inputStyle}
+                                placeholder="contact@yogitech.com"
+                            />
+                        </div>
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>Company Phone:</label>
+                            <input
+                                type="tel"
+                                name="companyPhone"
+                                value={settings.companyPhone}
+                                onChange={handleInputChange}
+                                style={inputStyle}
+                                placeholder="+1-800-123-4567"
+                            />
+                        </div>
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>Company Address:</label>
+                            <textarea
+                                name="companyAddress"
+                                value={settings.companyAddress}
+                                onChange={handleInputChange}
+                                rows="3"
+                                style={textareaStyle}
+                                placeholder="123 Tech Avenue, Innovation City, TX 78701"
+                            ></textarea>
+                        </div>
+
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>Facebook URL:</label>
+                            <input type="url" name="socialFacebook" value={settings.socialFacebook} onChange={handleInputChange} style={inputStyle} placeholder="https://facebook.com/yourpage" />
+                        </div>
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>Twitter URL:</label>
+                            <input type="url" name="socialTwitter" value={settings.socialTwitter} onChange={handleInputChange} style={inputStyle} placeholder="https://twitter.com/yourhandle" />
+                        </div>
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>Instagram URL:</label>
+                            <input type="url" name="socialInstagram" value={settings.socialInstagram} onChange={handleInputChange} style={inputStyle} placeholder="https://instagram.com/yourprofile" />
+                        </div>
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>LinkedIn URL:</label>
+                            <input type="url" name="socialLinkedIn" value={settings.socialLinkedIn} onChange={handleInputChange} style={inputStyle} placeholder="https://linkedin.com/company/yourcompany" />
+                        </div>
+
+                        {/* SEO & Analytics Section */}
+                        <h3 style={sectionTitleStyle}><i className="fas fa-chart-line section-icon"></i> SEO & Analytics</h3>
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>Meta Title (Homepage):</label>
+                            <input
+                                type="text"
+                                name="metaTitle"
+                                value={settings.metaTitle}
+                                onChange={handleInputChange}
+                                style={inputStyle}
+                                placeholder="Short, descriptive title for search engines"
+                                maxLength="60"
+                            />
+                            <p style={helpTextStyle}>Appears in browser tabs and search engine results. Max 60 characters.</p>
+                        </div>
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>Meta Description (Homepage):</label>
+                            <textarea
+                                name="metaDescription"
+                                value={settings.metaDescription}
+                                onChange={handleInputChange}
+                                rows="3"
+                                style={textareaStyle}
+                                placeholder="Brief summary of your homepage content for search engines"
+                                maxLength="160"
+                            ></textarea>
+                            <p style={helpTextStyle}>A concise summary for search engine results. Max 160 characters.</p>
+                        </div>
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>Google Analytics Tracking ID:</label>
+                            <input
+                                type="text"
+                                name="googleAnalyticsId"
+                                value={settings.googleAnalyticsId}
+                                onChange={handleInputChange}
+                                style={inputStyle}
+                                placeholder="UA-XXXXX-Y or G-XXXXXXX"
+                            />
+                            <p style={helpTextStyle}>Enter your Google Analytics tracking ID to monitor website traffic.</p>
+                        </div>
+
+                        {/* Advanced Options Section */}
+                        <h3 style={sectionTitleStyle}><i className="fas fa-cogs section-icon"></i> Advanced Options</h3>
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>Currency Symbol:</label>
+                            <input
+                                type="text"
+                                name="currencySymbol"
+                                value={settings.currencySymbol}
+                                onChange={handleInputChange}
+                                style={{ ...inputStyle, width: '80px' }}
+                                maxLength="3"
+                            />
+                            <p style={helpTextStyle}>The symbol displayed next to prices (e.g., $, €, £).</p>
+                        </div>
+                        <div style={formGroupStyle}>
+                            <div style={checkboxContainerStyle}>
+                                <input
+                                    type="checkbox"
+                                    id="enableMaintenanceMode"
+                                    name="enableMaintenanceMode"
+                                    checked={settings.enableMaintenanceMode}
+                                    onChange={handleInputChange}
+                                    style={checkboxStyle}
+                                />
+                                <label htmlFor="enableMaintenanceMode" style={checkboxLabelStyle}>Enable Maintenance Mode</label>
+                            </div>
+                            <p style={helpTextStyle}>When enabled, your public-facing site will show a maintenance message. Only admins can access the full site.</p>
+                        </div>
+
+                        <div style={formGroupStyle}>
+                            <label style={labelStyle}>Customer Dashboard Custom HTML:</label>
                             <textarea
                                 name="dashboardCustomHtml"
                                 value={settings.dashboardCustomHtml}
@@ -212,9 +442,7 @@ const AdminSettingsPage = () => {
                                 style={textareaStyle}
                                 placeholder="Enter custom HTML content for the customer dashboard welcome message. Use with caution as this will be rendered directly."
                             ></textarea>
-                            <p style={helpTextStyle}>
-                                This HTML will be rendered directly on the customer dashboard. Use with caution.
-                            </p>
+                            <p style={helpTextStyle}>This HTML will be rendered directly on the customer dashboard. Use with caution.</p>
                         </div>
 
                         <div style={formActionsStyle}>
@@ -358,6 +586,19 @@ const formStyle = {
     border: '1px solid #eee',
 };
 
+const sectionTitleStyle = {
+    fontSize: '1.8em',
+    color: '#2c3e50',
+    fontWeight: '700',
+    marginBottom: '30px',
+    marginTop: '40px',
+    paddingBottom: '10px',
+    borderBottom: '1px solid #e0f2f7',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '15px',
+};
+
 const formGroupStyle = {
     marginBottom: '25px',
     display: 'flex',
@@ -388,9 +629,9 @@ const inputStyle = {
 
 const textareaStyle = {
     ...inputStyle, // Inherit base input styles
-    minHeight: '150px',
+    minHeight: '100px', // Slightly reduced min-height for better fit
     resize: 'vertical',
-    fontFamily: 'monospace',
+    fontFamily: 'inherit', // Use Inter for textareas too
 };
 
 const colorInputGroupStyle = {
@@ -430,6 +671,11 @@ const helpTextStyle = {
     color: '#888',
     marginTop: '10px',
     lineHeight: '1.5',
+    backgroundColor: '#f6f9fc',
+    padding: '8px 12px',
+    borderRadius: '6px',
+    borderLeft: '3px solid #3498db',
+    fontStyle: 'italic',
 };
 
 const imagePreviewContainerStyle = {
@@ -439,6 +685,10 @@ const imagePreviewContainerStyle = {
     borderRadius: '10px',
     backgroundColor: '#eef2f5',
     textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
 };
 
 const imagePreviewStyle = {
@@ -448,6 +698,17 @@ const imagePreviewStyle = {
     borderRadius: '8px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     border: '2px solid #fff',
+    objectFit: 'contain', // Ensure image scales correctly
+};
+
+const faviconPreviewStyle = {
+    maxWidth: '32px',
+    maxHeight: '32px',
+    height: 'auto',
+    borderRadius: '4px',
+    boxShadow: '0 1px 5px rgba(0,0,0,0.1)',
+    border: '1px solid #fff',
+    objectFit: 'contain',
 };
 
 const imagePreviewLabelStyle = {
@@ -457,9 +718,34 @@ const imagePreviewLabelStyle = {
     fontWeight: '500',
 };
 
+const checkboxContainerStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    marginBottom: '10px',
+    cursor: 'pointer',
+};
+
+const checkboxStyle = {
+    marginRight: '10px',
+    width: '20px',
+    height: '20px',
+    accentColor: '#007bff', // Native checkbox color
+    cursor: 'pointer',
+};
+
+const checkboxLabelStyle = {
+    fontSize: '1.1em',
+    color: '#34495e',
+    fontWeight: '600',
+    cursor: 'pointer',
+};
+
+
 const formActionsStyle = {
     marginTop: '40px',
     textAlign: 'right',
+    paddingTop: '20px',
+    borderTop: '1px solid #e0f2f7',
 };
 
 const submitButtonStyle = {

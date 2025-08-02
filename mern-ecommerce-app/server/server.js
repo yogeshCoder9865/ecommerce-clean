@@ -1,25 +1,49 @@
-// server/server.js
 const express = require('express');
-const connectDB = require('./config/db');
+const dotenv = require('dotenv');
 const cors = require('cors');
-require('dotenv').config();
+const path = require('path');
+const connectDB = require('./config/db');
 
-const app = express();
+// Route Imports
+const userRoutes = require('./routes/userRoutes');
+const productRoutes = require('./routes/productRoutes');
+const authRoutes = require('./routes/authRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes'); // ✅ Added this
+const settingsRoutes = require('./routes/settingsRoutes'); 
 
-// Connect Database
+
+// Load environment variables
+dotenv.config();
+
+// Connect to MongoDB
 connectDB();
 
-// Init Middleware
-app.use(express.json()); // Allows us to get data in req.body
-app.use(cors()); // Enable CORS for cross-origin requests
+// Initialize express app
+const app = express();
 
-// Define Routes
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/products', require('./routes/productRoutes'));
-app.use('/api/users', require('./routes/userRoutes')); // For customers/admins management
-app.use('/api/orders', require('./routes/orderRoutes'));
-app.use('/api/settings', require('./routes/settingsRoutes')); // For portal settings
+// Middleware
+app.use(cors());
+app.use(express.json()); // For parsing JSON request bodies
 
+// Serve uploaded images from /uploads folder
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// API Routes
+app.use('/api/users', userRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/dashboard', dashboardRoutes); // ✅ Register dashboard route here
+app.use('/api/settings', settingsRoutes);
+
+// Root route
+app.get('/', (req, res) => {
+    res.send('API is running...');
+});
+
+// Start server
 const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`✅ Server running on port ${PORT}`);
+});

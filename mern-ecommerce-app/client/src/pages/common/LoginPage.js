@@ -1,24 +1,26 @@
 // client/src/pages/common/LoginPage.js
+// I've refined the error handling in the `handleSubmit` function.
+
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom'; // Import Link for "Register here" and "Forgot Password"
-import logo from '../../assesets/logo.png'; // Reverted: 'assesets' as per user's folder structure
+import { useNavigate, Link } from 'react-router-dom';
+import logo from '../../assesets/logo.png';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false); // State for loading indicator
+    const [loading, setLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(''); // Clear previous errors
-        setLoading(true); // Set loading state
+        setError('');
+        setLoading(true);
 
         try {
-            const loggedInUser = await login(email, password); // This function should now throw an error on failure
+            const loggedInUser = await login(email, password);
 
             if (loggedInUser) {
                 if (loggedInUser.role === 'admin') {
@@ -26,65 +28,60 @@ const LoginPage = () => {
                 } else {
                     navigate('/');
                 }
-            } else {
-                // This 'else' block should ideally not be hit if 'login' always throws on failure.
-                // It's a fallback, but the 'catch' block below is more robust for Axios errors.
-                setError('Login failed. Please check your credentials.');
-                console.log('Error state set (fallback):', 'Login failed. Please check your credentials.');
             }
         } catch (err) {
-            console.error('Login attempt failed:', err);
-            let errorMessage = 'Login failed. Please try again later.'; // Generic fallback
+            // Log the full error for debugging purposes. This is expected.
+            console.error('Login attempt failed:', err.response || err);
 
-            // Check for specific Axios error status (e.g., 401 for unauthorized)
-            if (err.response && err.response.status === 401) {
-                errorMessage = 'Invalid email or password. Please try again.';
-            } else if (err.response && err.response.data && err.response.data.message) {
-                // Use a more specific error message from the backend if available
-                errorMessage = err.response.data.message;
-            }
-            setError(errorMessage);
-            console.log('Error state set (catch block):', errorMessage); // Log the error being set
+            // --- REFINED ERROR HANDLING ---
+            // This logic now robustly extracts the error message sent from your backend.
+            // If your backend sends a { message: '...' } object on error, this will display it.
+            const message =
+                (err.response &&
+                    err.response.data &&
+                    err.response.data.message) ||
+                'Invalid credentials. Please check your email and password.';
+
+            setError(message);
         } finally {
-            setLoading(false); // Always reset loading state
+            setLoading(false);
         }
     };
 
-    // --- Inline Styles for Luxury and Premium UI with Animations ---
-
+    // --- All inline styles remain the same ---
     const pageContainerStyle = {
         display: 'flex',
         minHeight: '100vh',
         height: '100vh',
-        backgroundColor: '#f0f2f5', // Light background for the whole page
+        backgroundColor: '#f0f2f5',
         fontFamily: 'Inter, Arial, sans-serif',
-        overflow: 'hidden', // Hide overflow for animations
-        borderRadius: '20px', // Overall rounded container
-        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.2)', // Deep shadow for the whole block
-        margin: '30px auto', // Center the entire block
-        maxWidth: '1200px', // Max width for the split layout
-        width: '95%', // Responsive width
+        overflow: 'hidden',
+        borderRadius: '20px',
+        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.2)',
+        margin: '30px auto',
+        maxWidth: '1200px',
+        width: '95%',
     };
 
     const promoSectionStyle = {
         flex: 1,
-        backgroundColor: '#4070f4', // Vibrant blue from the image
+        backgroundColor: '#4070f4',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
         padding: '40px',
         color: 'white',
-        borderRadius: '20px 0 0 20px', // Rounded only on the left side
-        animation: 'slideInLeft 0.8s ease-out', // Animation for the promo section
+        borderRadius: '20px 0 0 20px',
+        animation: 'slideInLeft 0.8s ease-out',
         position: 'relative',
-        overflow: 'hidden', // For any background effects
+        overflow: 'hidden',
     };
 
     const promoContentStyle = {
         textAlign: 'center',
         maxWidth: '450px',
-        zIndex: 1, // Ensure content is above any background effects
+        zIndex: 1,
     };
 
     const promoTitleStyle = {
@@ -108,22 +105,22 @@ const LoginPage = () => {
         height: 'auto',
         borderRadius: '15px',
         boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-        animation: 'zoomIn 0.8s ease-out 0.4s forwards', // Staggered animation
-        opacity: 0, // Start invisible
-        transform: 'scale(0.8)', // Start smaller
+        animation: 'zoomIn 0.8s ease-out 0.4s forwards',
+        opacity: 0,
+        transform: 'scale(0.8)',
     };
 
     const loginSectionStyle = {
         flex: 1,
-        backgroundColor: '#ffffff', // White background for login form
+        backgroundColor: '#ffffff',
         padding: '50px 40px',
-        borderRadius: '0 20px 20px 0', // Rounded only on the right side
-        boxShadow: '0 15px 40px rgba(0, 0, 0, 0.1)', // Softer shadow for login section
+        borderRadius: '0 20px 20px 0',
+        boxShadow: '0 15px 40px rgba(0, 0, 0, 0.1)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        animation: 'slideInRight 0.8s ease-out', // Animation for the login section
+        animation: 'slideInRight 0.8s ease-out',
     };
 
     const loginHeaderStyle = {
@@ -134,7 +131,7 @@ const LoginPage = () => {
     };
 
     const logoImageStyle = {
-        width: '40px', // Smaller logo for login section
+        width: '40px',
         height: '40px',
         borderRadius: '50%',
         marginRight: '15px',
@@ -175,17 +172,20 @@ const LoginPage = () => {
         animation: 'shake 0.5s ease-in-out',
         width: '100%',
         maxWidth: '350px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
     };
 
     const formStyle = {
         width: '100%',
-        maxWidth: '350px', // Max width for the form elements
+        maxWidth: '350px',
     };
 
     const formGroupStyle = {
         marginBottom: '20px',
         textAlign: 'left',
-        position: 'relative', // For forgot password link positioning
+        position: 'relative',
     };
 
     const labelStyle = {
@@ -204,32 +204,23 @@ const LoginPage = () => {
         fontSize: '1em',
         boxSizing: 'border-box',
         transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-        ':focus': {
-            borderColor: '#3498db',
-            boxShadow: '0 0 0 3px rgba(52, 152, 219, 0.2)',
-            outline: 'none',
-        },
     };
 
     const forgotPasswordLinkStyle = {
         position: 'absolute',
         right: '0',
-        top: '0', // Adjust this if needed to align with label
+        top: '0',
         fontSize: '0.85em',
         color: '#3498db',
         textDecoration: 'none',
         fontWeight: '500',
         transition: 'color 0.2s ease',
-        ':hover': {
-            color: '#2980b9',
-            textDecoration: 'underline',
-        },
     };
 
     const loginButtonStyle = {
         width: '100%',
         padding: '15px 25px',
-        backgroundColor: '#4070f4', // Blue from promo section
+        backgroundColor: '#4070f4',
         color: 'white',
         border: 'none',
         borderRadius: '10px',
@@ -239,21 +230,14 @@ const LoginPage = () => {
         marginTop: '20px',
         transition: 'background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease',
         boxShadow: '0 6px 15px rgba(64, 112, 244, 0.3)',
-        ':hover': {
-            backgroundColor: '#3360e0',
-            transform: 'translateY(-2px)',
-            boxShadow: '0 8px 20px rgba(64, 112, 244, 0.4)',
-        },
-        ':active': {
-            transform: 'translateY(0)',
-            boxShadow: '0 4px 10px rgba(64, 112, 244, 0.3)',
-        },
-        ':disabled': { // Style for disabled state
-            backgroundColor: '#a0c8f5',
-            cursor: 'not-allowed',
-            boxShadow: 'none',
-            transform: 'none', // Ensure no transform on disabled state
-        },
+    };
+    
+    const disabledLoginButtonStyle = {
+        ...loginButtonStyle,
+        backgroundColor: '#a0c8f5',
+        cursor: 'not-allowed',
+        boxShadow: 'none',
+        transform: 'none',
     };
 
     const orDividerStyle = {
@@ -302,23 +286,13 @@ const LoginPage = () => {
     const socialButtonGoogleStyle = {
         ...socialButtonBaseStyle,
         backgroundColor: 'white',
-        color: '#4285F4', // Google blue
-        ':hover': {
-            backgroundColor: '#f5f5f5',
-            borderColor: '#4285F4',
-            boxShadow: '0 2px 10px rgba(66, 133, 244, 0.2)',
-        },
+        color: '#4285F4',
     };
 
     const socialButtonFacebookStyle = {
         ...socialButtonBaseStyle,
         backgroundColor: 'white',
-        color: '#1877F2', // Facebook blue
-        ':hover': {
-            backgroundColor: '#f5f5f5',
-            borderColor: '#1877F2',
-            boxShadow: '0 2px 10px rgba(24, 119, 242, 0.2)',
-        },
+        color: '#1877F2',
     };
 
     const socialIconStyle = {
@@ -337,20 +311,10 @@ const LoginPage = () => {
         textDecoration: 'none',
         fontWeight: 'bold',
         transition: 'color 0.3s ease',
-        ':hover': {
-            textDecoration: 'underline',
-        },
-    };
-
-    const adminDemoStyle = {
-        marginTop: '15px',
-        fontSize: '0.85em',
-        color: '#7f8c8d',
     };
 
     return (
         <div style={pageContainerStyle}>
-            {/* Left Promotional Section */}
             <div style={promoSectionStyle}>
                 <div style={promoContentStyle}>
                     <h2 style={promoTitleStyle}>Simplify Management With Our Dashboard.</h2>
@@ -358,19 +322,17 @@ const LoginPage = () => {
                         Simplify your e-commerce management with our user-friendly admin dashboard.
                     </p>
                     <img
-                        src="https://placehold.co/300x200/4070f4/FFFFFF?text=Characters" // Placeholder for characters image
+                        src="http://localhost:5000/uploads/6885e93ad83e54519f4a5c4a-1753947720652.png"
                         alt="Management Characters"
                         style={promoImageStyle}
                     />
                 </div>
             </div>
 
-            {/* Right Login Form Section */}
             <div style={loginSectionStyle}>
-                {/* Logo and Website Name at the top of the login section */}
                 <div style={loginHeaderStyle}>
                     <img
-                        src={logo} // Customizable logo URL
+                        src={logo}
                         alt="Yogi Tech Logo"
                         style={logoImageStyle}
                     />
@@ -379,7 +341,14 @@ const LoginPage = () => {
 
                 <h2 style={formTitleStyle}>Welcome Back</h2>
                 <p style={subTitleStyle}>Please login to your account</p>
-                {error && <p key={error} style={errorMessageStyle}>{error}</p>} {/* Added key for better re-rendering */}
+                
+                {error && (
+                    <p key={error} style={errorMessageStyle}>
+                        <i className="fas fa-exclamation-circle"></i>
+                        {error}
+                    </p>
+                )}
+
                 <form onSubmit={handleSubmit} style={formStyle}>
                     <div style={formGroupStyle}>
                         <label htmlFor="email" style={labelStyle}>Email address</label>
@@ -406,7 +375,7 @@ const LoginPage = () => {
                         />
                         <Link to="/forgot-password" style={forgotPasswordLinkStyle}>Forgot Password?</Link>
                     </div>
-                    <button type="submit" style={loginButtonStyle} disabled={loading}>
+                    <button type="submit" style={loading ? disabledLoginButtonStyle : loginButtonStyle} disabled={loading}>
                         {loading ? 'Logging In...' : 'Login'}
                     </button>
                 </form>
@@ -429,12 +398,79 @@ const LoginPage = () => {
                 <p style={registerLinkStyle}>
                     Don't have an account? <Link to="/register" style={linkStyle}>Signup</Link>
                 </p>
-                {/* <p style={adminDemoStyle}>
-                    Admin Demo: <strong>admin@example.com</strong> / <strong>admin123</strong>
-                </p> */}
             </div>
         </div>
     );
 };
 
 export default LoginPage;
+
+
+// ----------------------------------------------------------------
+// --- Backend Files (for context, no changes needed) ---
+// ----------------------------------------------------------------
+
+/*
+// server/controllers/authController.js (NO CHANGES)
+const asyncHandler = require('express-async-handler');
+const User = require('../models/User');
+const generateToken = require('../utils/generateToken');
+
+const registerUser = asyncHandler(async (req, res) => {
+    // ... (code as provided)
+});
+
+const loginUser = asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+
+    if (user && (await user.matchPassword(password))) {
+        res.json({
+            _id: user._id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            role: user.role,
+            isActive: user.isActive,
+            token: generateToken(user._id, user.role),
+        });
+    } else {
+        res.status(401);
+        throw new Error('Invalid email or password');
+    }
+});
+
+const getMe = asyncHandler(async (req, res) => {
+    // ... (code as provided)
+});
+
+const impersonateUser = asyncHandler(async (req, res) => {
+    // ... (code as provided)
+});
+
+const exitImpersonation = asyncHandler(async (req, res) => {
+    // ... (code as provided)
+});
+
+module.exports = {
+    registerUser,
+    loginUser,
+    getMe,
+    impersonateUser,
+    exitImpersonation
+};
+
+// server/routes/authRoutes.js (NO CHANGES)
+const express = require('express');
+const router = express.Router();
+const { registerUser, loginUser, getMe, impersonateUser, exitImpersonation } = require('../controllers/authController');
+const { protect, authorizeRoles } = require('../middleware/authMiddleware');
+
+router.post('/register', registerUser);
+router.post('/login', loginUser);
+router.get('/me', protect, getMe);
+router.post('/impersonate/:customerId', protect, authorizeRoles('admin'), impersonateUser);
+router.post('/exit-impersonation', protect, exitImpersonation);
+
+module.exports = router;
+*/

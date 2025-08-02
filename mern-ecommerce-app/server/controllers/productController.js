@@ -63,14 +63,32 @@ const getProductById = async (req, res) => {
 // @route   POST /api/products
 // @access  Private/Admin
 const createProduct = async (req, res) => {
-    const { name, description, price, stockQuantity, imageUrl } = req.body;
+    // Destructure all fields from the request body, including new ones
+    const { 
+        name, 
+        description, 
+        price, 
+        stockQuantity, 
+        imageUrl, 
+        additionalImages, // New field
+        averageRating,    // New field
+        numReviews,       // New field
+        reviews,          // New field
+        offers            // New field
+    } = req.body;
+
     try {
         const newProduct = await Product.create({
             name,
             description,
             price,
             stockQuantity,
-            imageUrl
+            imageUrl,
+            additionalImages: additionalImages || [], // Ensure it's an array, default to empty
+            averageRating: averageRating || 0,
+            numReviews: numReviews || 0,
+            reviews: reviews || [], // Ensure it's an array, default to empty
+            offers: offers || []    // Ensure it's an array, default to empty
         });
         res.status(201).json(newProduct);
     } catch (error) {
@@ -82,15 +100,36 @@ const createProduct = async (req, res) => {
 // @route   PUT /api/products/:id
 // @access  Private/Admin
 const updateProduct = async (req, res) => {
-    const { name, description, price, stockQuantity, imageUrl } = req.body;
+    // Destructure all fields from the request body, including new ones
+    const { 
+        name, 
+        description, 
+        price, 
+        stockQuantity, 
+        imageUrl, 
+        additionalImages, // New field
+        averageRating,    // New field
+        numReviews,       // New field
+        reviews,          // New field
+        offers            // New field
+    } = req.body;
+
     try {
         const product = await Product.findById(req.params.id);
         if (product) {
-            product.name = name || product.name;
-            product.description = description || product.description;
+            product.name = name !== undefined ? name : product.name;
+            product.description = description !== undefined ? description : product.description;
             product.price = price !== undefined ? price : product.price;
             product.stockQuantity = stockQuantity !== undefined ? stockQuantity : product.stockQuantity;
-            product.imageUrl = imageUrl || product.imageUrl;
+            product.imageUrl = imageUrl !== undefined ? imageUrl : product.imageUrl;
+            
+            // Update new fields, ensuring they are handled correctly
+            product.additionalImages = additionalImages !== undefined ? additionalImages : product.additionalImages;
+            product.averageRating = averageRating !== undefined ? averageRating : product.averageRating;
+            product.numReviews = numReviews !== undefined ? numReviews : product.numReviews;
+            product.reviews = reviews !== undefined ? reviews : product.reviews;
+            product.offers = offers !== undefined ? offers : product.offers;
+
             product.updatedAt = Date.now();
 
             const updatedProduct = await product.save();
